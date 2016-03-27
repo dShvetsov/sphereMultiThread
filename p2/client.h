@@ -5,19 +5,19 @@
 #include <netinet/in.h>
 #include <sys/socket.h>
 #include <sys/types.h>
-#include <iostream>
 #include <strings.h>
-#include <set>
 #include <sys/epoll.h>
 #include <system_error>
 #include <errno.h>
 #include <ostream>
 
+static const size_t MAX_BUF_CHAT = 1024;
+
 class InputHandler;
 
 class ServConn{
 	int sock;
-	char buf[1024];
+	char buf[MAX_BUF_CHAT + 1];
 public:
 	ServConn();
 	int get_fd(){return sock;}
@@ -29,11 +29,11 @@ public:
 class InputHandler{
 	int In = STDIN_FILENO;
 public:
-	char buf[1024];
+	char buf[MAX_BUF_CHAT + 1];
 	int n;
 	InputHandler() {};
 	void read(){
-		n = ::read(In, buf, 1024);
+		n = ::read(In, buf, MAX_BUF_CHAT);
 		if (n == 0) { 
 			close(In);
 		} else {

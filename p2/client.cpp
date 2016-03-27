@@ -18,9 +18,12 @@ void ServConn::send_msg(const char *buf, int len){
 }
 
 void ServConn::recive(){
-	int N = ::recv(sock, buf, 1024, MSG_NOSIGNAL);
+	int N = ::recv(sock, buf, MAX_BUF_CHAT, MSG_NOSIGNAL);
 	if (N == -1){
 		throw std::system_error(errno, std::system_category());		
+	}
+	if (N == 0) {
+		exit(0);
 	}
 	buf[N] = '\0';
 	std::cout << buf;
@@ -60,3 +63,4 @@ int main() {
 	}
 	return 0;
 }
+

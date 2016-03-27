@@ -14,8 +14,13 @@
 #include <system_error>
 #include <errno.h>
 #include <ostream>
+#include <map>
+#include <sys/ioctl.h> 
 
 
+static const size_t MAX_BUF_CHAT = 1024;
+
+void  set_nonblock(int );
 
 class Log  {
 	std::ostream& out;
@@ -29,6 +34,7 @@ public:
 class Connection {
 	int Master;
 	std::set<int> fds;
+	std::map<int, std::string> msg;
 	Log log;
 	int epfd;
 	struct epoll_event* events;
@@ -41,4 +47,5 @@ public:
 	void message(int fd);
 	void disconnect(int fd);
 	void broadcast(const char *buffer, int len);
+	void broadcast(const std::string &s);
 };
