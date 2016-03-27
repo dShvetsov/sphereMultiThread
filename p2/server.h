@@ -9,11 +9,14 @@
 #include <sys/types.h>
 #include <iostream>
 #include <strings.h>
-#include <list>
+#include <set>
 #include <sys/epoll.h>
 #include <system_error>
 #include <errno.h>
 #include <ostream>
+
+
+
 class Log  {
 	std::ostream& out;
 public:
@@ -25,14 +28,17 @@ public:
 
 class Connection {
 	int Master;
-	std::list<int> fds;
+	std::set<int> fds;
 	Log log;
 	int epfd;
 	struct epoll_event* events;
+	const char *welcome = "Welcome to our server!\n";
 public:
 	Connection(int port = 12345);
 	void listen ();
 	void  wait ();
 	void add_new_user();
 	void message(int fd);
+	void disconnect(int fd);
+	void broadcast(char *buffer, int len);
 };

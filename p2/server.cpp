@@ -34,12 +34,13 @@ void Connection::wait(){
 		throw std::system_error(errno, std::system_category());
 	}
 	for (unsigned int i = 0 ; i < N; i++) {
-			if (events[i].data.fd == Master) { 
-				add_new_user();
-			} else { 
-				message(events[i].data.fd);
-			}
-
+		if ((events[i].events & EPOLLERR) || (events[i].events & EPOLLHUP)) {
+			disconnect(events[i].data.fd);
+		}else if (events[i].data.fd == Master) { 
+			add_new_user();
+		} else { 
+			message(events[i].data.fd);
+		}
 	}
 }
 
@@ -52,15 +53,36 @@ void Connection::add_new_user(){
 	event.data.fd = Slave;
 	event.events = EPOLLIN | EPOLLET;
 	epoll_ctl(epfd, EPOLL_CTL_ADD, Slave, &event);
-	fds.push_back(Slave);
+	fds.insert(Slave);
+	send(Slave, welcome, 24, MSG_NOSIGNAL);
 	log.say("new user connected\n");
+
 }
 
 void Connection::message(int fd){
 	char buf[1024];
 	int n = recv(fd, &buf, 1024, MSG_NOSIGNAL);
-	buf[n] = '\0';
-	log.say(std::string(buf));
+	if (n < 0) { 
+		throw std::system_error(errno, std::system_category());
+	} else if (n == 0) {
+		disconnect(fd);
+	} else {
+		buf[n] = '\0';
+		log.say(std::string(buf));
+		broadcast(buf, n);
+	}
+}
+
+void Connection::disconnect(int fd)  {
+	close(fd);
+	fds.erase(fd);
+	log.say("user disconnected\n");
+}
+
+void Connection::broadcast(char *buffer, int len) {
+	for (auto it = fds.begin(); it != fds.end(); it++){
+		send(*it, buffer, len, MSG_NOSIGNAL);
+	}
 }
 
 int main() { 
