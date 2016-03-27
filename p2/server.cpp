@@ -1,21 +1,34 @@
 #include "server.h"
 
 Connection::Connection(int port):log(std::cout) { 
-	/* This may be error !!!! If Failed pay attention to SockAddr and event!!!!*/
 	Master = socket(AF_INET, SOCK_STREAM, IPPROTO_TCP);
+	if (Master == -1){
+		throw std::system_error(errno, std::system_category());
+	}
 	struct sockaddr_in SockAddr;
 	bzero(&SockAddr, sizeof(SockAddr));
 	SockAddr.sin_family = AF_INET;
 	SockAddr.sin_port = htons(port);
 	SockAddr.sin_addr.s_addr = htonl(INADDR_ANY);
-	bind(Master, (struct sockaddr *)&SockAddr, sizeof(SockAddr));
+	int optval = 1;
+	setsockopt(Master, SOL_SOCKET, SO_REUSEADDR, &optval, sizeof(optval));
+	if (bind(Master, (struct sockaddr *)&SockAddr, sizeof(SockAddr)) == -1){
+		throw std::system_error(errno, std::system_category());
+	}
 	epfd = epoll_create1(0);
+	if (epfd == -1){
+		throw std::system_error(errno, std::system_category());
+	}
 	struct epoll_event event;
 	event.data.fd = Master;
 	event.events = EPOLLIN | EPOLLET;
-	epoll_ctl(epfd, EPOLL_CTL_ADD, Master, &event);
+	if (epoll_ctl(epfd, EPOLL_CTL_ADD, Master, &event) == -1){
+		throw std::system_error(errno, std::system_category());
+	}
 	events = (epoll_event *)calloc(128, sizeof(struct epoll_event));
-	log.say("Server already to work\n");
+	if (events == NULL) { 
+		throw std::system_error(errno, std::system_category());
+	}
 }
 
 void Connection::listen() { 
@@ -23,12 +36,10 @@ void Connection::listen() {
 	if (::listen(Master, SOMAXCONN) == -1) {
 		throw std::system_error(errno, std::system_category());
 	}
-	log.say("Server start listen\n");
 }
 
 
 void Connection::wait(){
-	log.say("Server wait for event\n");
 	int N = epoll_wait(epfd, events, 1024, -1);
 	if (N == -1){
 		throw std::system_error(errno, std::system_category());
@@ -55,7 +66,7 @@ void Connection::add_new_user(){
 	epoll_ctl(epfd, EPOLL_CTL_ADD, Slave, &event);
 	fds.insert(Slave);
 	send(Slave, welcome, 24, MSG_NOSIGNAL);
-	log.say("new user connected\n");
+	log.say("LOG:: accepted connection\n");
 
 }
 
@@ -76,37 +87,24 @@ void Connection::message(int fd){
 void Connection::disconnect(int fd)  {
 	close(fd);
 	fds.erase(fd);
-	log.say("user disconnected\n");
+	log.say("connection terminated\n");
 }
 
-void Connection::broadcast(char *buffer, int len) {
+void Connection::broadcast(const char *buffer, int len) {
 	for (auto it = fds.begin(); it != fds.end(); it++){
 		send(*it, buffer, len, MSG_NOSIGNAL);
 	}
 }
 
 int main() { 
-	Connection conn(12345);
+	try{
+	Connection conn(3100);
 	conn.listen();
 	for (;;) { 
 		conn.wait();
+	}}
+	catch(std::system_error& err) { 
+		std::cout << err.what () << std::endl;
 	}
 	return 0;
-	/*
-	int MasterSocket = socket(AF_INET, SOCK_STREAM, IPPROTO_TCP);
-	struct sockaddr_in SockAddr;
-	bzero(&SockAddr, sizeof(SockAddr));
-	SockAddr.sin_family = AF_INET;
-	SockAddr.sin_port = htons(12345);
-	SockAddr.sin_addr.s_addr = htonl(INADDR_ANY);
-	bind(MasterSocket, (struct sockaddr *)&SockAddr, sizeof(SockAddr));
-	listen(MasterSocket, SOMAXCONN);
-	int SlaveSocket = accept(MasterSocket, 0,0);
-	while (true){
-		char buf[100];
-		recv(SlaveSocket, &buf, 30, MSG_NOSIGNAL);
-		std::cout << buf;
-	}
-	return 0;
-	*/
 }

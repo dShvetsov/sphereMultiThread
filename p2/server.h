@@ -40,5 +40,5 @@ public:
 	void add_new_user();
 	void message(int fd);
 	void disconnect(int fd);
-	void broadcast(char *buffer, int len);
+	void broadcast(const char *buffer, int len);
 };
