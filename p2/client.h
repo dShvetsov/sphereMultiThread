@@ -1,4 +1,4 @@
-
+/* architecture Ubuntu 15.10 */
 #include <iostream>
 #include <string>
 #include <unistd.h>

@@ -1,3 +1,5 @@
+/* architecture Ubuntu 15.19 */
+
 #pragma once
 
 
