@@ -56,9 +56,11 @@ class Client : public std::enable_shared_from_this<Client> {
 	void rdsrvend(const boost::system::error_code err, size_t size);
 	void readend(const boost::system::error_code err, size_t size);
 	void write2cli(char * buf, size_t size);
+	void write2srv(char *buf, size_t size);
 	void writeend(const boost::system::error_code err, size_t size);
 	bool started = false;
 	void connectend(const boost::system::error_code err);
+	void write2srvend(const boost::system::error_code err, size_t size);
 public:
 	ip::tcp::socket &socket() { return sock_;}
 	void start ();

@@ -74,7 +74,7 @@ void Client::rdsrvend(const boost::system::error_code err, size_t size) {
 void Client::readend(const boost::system::error_code err, size_t size) {
 	client_buffer[size] = '\0';
 	std::cout << client_buffer;
-	write2cli(client_buffer, size);
+	write2srv(client_buffer, size);
 	if (err) {
 		stop();
 	} else {
@@ -97,6 +97,14 @@ void Client::write2cli(char *buf, size_t size){
 						shared_from_this(), _1, _2));
 }
 
+void Client::write2srv(char *buf, size_t size) { 
+	serv_sock.async_send(buffer(buf, size),
+						boost::bind(&Client::write2srvend, 
+							shared_from_this(), _1, _2)
+			);
+}
+
+void Client::write2srvend(const boost::system::error_code err, size_t size) {};
 void Client::writeend(const boost::system::error_code err, size_t size) {};
 
 void Client::stop(){
