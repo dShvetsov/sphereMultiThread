@@ -25,8 +25,6 @@ class Config {
 	int proxyport;
 	std::vector<dst_struct> dst;
 	void parse();
-
-
 	public:
 		Config(const char *name):filename(name) {
 			file = ::fopen(name, "r");
@@ -35,6 +33,7 @@ class Config {
 		int get_port() const {return proxyport;}
 		std::vector<dst_struct> get_dst() const {return dst;}
 };
+
 
 class ClientManager;
 class Client;
@@ -80,7 +79,7 @@ class ClientManager {
 public :
 	void set_servers(std::vector<dst_struct> servers_) {
 		servers = servers_;
-		std::uniform_int_distribution<int> helper(0, servers.size());
+		std::uniform_int_distribution<int> helper(0, servers.size() - 1);
 		distribution.param(helper.param());
 	}
 	client_ptr new_client( );

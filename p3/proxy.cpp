@@ -15,7 +15,8 @@ void Config::parse(){
 		str[i] = '\0';
 		pushed.ipaddr = std::string(&str[start]);
 		getdelim(&str, &n, ',', file);
-		pushed.port = atoi(str);
+		for (i = 0; str[i] < '0' or str[i] >'9'; i++);
+		pushed.port = atoi(&str[i]);
 		dst.push_back(pushed);
 	}
 	free(str);
@@ -28,10 +29,12 @@ client_ptr ClientManager::new_client() {
 			new Client(next_cookie++)
 		).first->second; */
 	int num = distribution(generator);
+	std::cout << num << ' ' << servers[num].ipaddr << ' ' << servers[num].port << std::endl;
 	ip::address addr = ip::address::from_string(servers[num].ipaddr);
 	int port = servers[num].port;
 	client_ptr cli(new Client(next_cookie, addr, port));
-	clients[next_cookie++] = cli;
+	clients[next_cookie] = cli;
+	next_cookie++;
 	return cli; 
 }
 
@@ -129,13 +132,6 @@ int main(int argc, char ** argv) {
 	clientmanager.set_servers(cnfg.get_dst());
 	ip::tcp::endpoint ep(ip::tcp::v4(), cnfg.get_port());
 	acc = std::shared_ptr<ip::tcp::acceptor>(new ip::tcp::acceptor(service, ep));
-	//ep.port(cnfg.get_port());
-	//ep.address(ip::address_v4::any());
-
-	//acc.bind(ep);
-	//acc.open(ep.protocol());
-//	ip::tcp::endpoint ep(ip::tcp::v4(), cnfg.get_port());
-//	ip::tcp::acceptor acc(service, ep);
 	client_ptr client = clientmanager.new_client();
 	acc->async_accept(client->socket(), boost::bind(handle_accept, client, _1));
 	service.run(); 
