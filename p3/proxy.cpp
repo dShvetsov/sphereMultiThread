@@ -60,7 +60,11 @@ void Client::readsrvend(const boost::system::error_code err, size_t size) {
 	server_buffer[size] = '\0';
 	std::cout <<server_buffer;
 	if (err) { 
-		stop();
+		if (client_alive){
+			server_alive = false;
+		} else {
+			stop();
+		}
 	} else {
 		write2cli(server_buffer, size);
 		readfromsrv();
@@ -70,10 +74,14 @@ void Client::readsrvend(const boost::system::error_code err, size_t size) {
 void Client::readcliend(const boost::system::error_code err, size_t size) {
 	client_buffer[size] = '\0';
 	std::cout << client_buffer;
-	write2srv(client_buffer, size);
 	if (err) {
-		stop();
+		if (server_alive){
+			client_alive = false;
+		} else {
+			stop();
+		}
 	} else {
+		write2srv(client_buffer, size);
 		readfromcli();
 	}
 }
@@ -83,7 +91,7 @@ void Client::start() {
 	serv_sock.async_connect(ep, boost::bind(&Client::connectend,
 											shared_from_this(), _1));
 	started = true;
-	//readfromcli();
+	client_alive = true;
 	std::cout << "client started\n";
 }
 
@@ -100,12 +108,21 @@ void Client::write2srv(char *buf, size_t size) {
 			);
 }
 
-void Client::write2srvend(const boost::system::error_code err, size_t size) {};
-void Client::write2cliend(const boost::system::error_code err, size_t size) {};
+void Client::write2srvend(const boost::system::error_code err, size_t size) {
+	if (!client_alive and !server_alive) {
+		stop();
+	}
+};
+void Client::write2cliend(const boost::system::error_code err, size_t size) {
+	if (!client_alive and !server_alive) {
+		stop();
+	}
+};
 
 void Client::stop(){
 	if (started) {
 		sock_.close();
+		serv_sock.close();
 	}
 	clientmanager.stop(cookie);
 	std::cout << "stopped\n";
@@ -116,6 +133,7 @@ void Client::connectend(const boost::system::error_code err) {
 		std::cout << "error with connecting server";
 		stop();
 	}
+	server_alive = true;
 	readfromsrv();
 	readfromcli();
 }
