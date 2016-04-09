@@ -5,6 +5,8 @@
 #include <boost/bind.hpp>
 #include <memory>
 #include <iostream>
+#include <boost/enable_shared_from_this.hpp>
+#include <boost/shared_ptr.hpp>
 using namespace boost::asio;
 
 io_service service;
@@ -13,6 +15,7 @@ struct dst_struct{
 		int port;
 		std::string ipaddr;
 };
+
 
 class Config {
 	const char *filename;
@@ -35,15 +38,17 @@ class ClientManager;
 class Client;
 typedef std::shared_ptr<Client> client_ptr;
 
-class Client {
+class Client : public std::enable_shared_from_this<Client> {
 	ip::tcp::socket sock_;
-
+	char client_buffer[1024];
 	Client () :sock_(service) { }
+	void read();
+	void readend(boost::system::error_code err, size_t size);
+	void write(size_t size);
+	void writeend(boost::system::error_code err, size_t size);
 public:
 	ip::tcp::socket &socket() { return sock_;}
-	void start () {
-		std::cout << "client started\n";
-	}
+	void start ();
 	friend class ClientManager;
 };
 

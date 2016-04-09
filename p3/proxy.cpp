@@ -41,8 +41,31 @@ void handle_accept(client_ptr cli, const boost::system::error_code & error) {
 	acc->async_accept(new_client->socket(), boost::bind(handle_accept, new_client, _1));
 }
  
+void Client::read() {
+	sock_.async_receive(buffer(client_buffer),
+	               boost::bind(&Client::readend, 
+	               shared_from_this(), _1, _2));
+}
 
+void Client::readend(boost::system::error_code err, size_t size) {
+	client_buffer[size] = '\0';
+	std::cout << client_buffer;
+	write(size);
+	read();
+}
 
+void Client::start() {
+	read();
+	std::cout << "client started\n";
+}
+
+void Client::write(size_t size){
+	sock_.async_send(buffer(client_buffer, size), 
+					boost::bind(&Client::writeend,
+						shared_from_this(), _1, _2));
+}
+
+void Client::writeend(boost::system::error_code err, size_t size) {};
 
 int main(int argc, char ** argv) {
 	if (argc < 2) {std::cout << "specify config file\n"; return 0;}
