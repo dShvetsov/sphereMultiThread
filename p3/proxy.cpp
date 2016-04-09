@@ -45,13 +45,13 @@ void handle_accept(client_ptr cli, const boost::system::error_code & error) {
 }
  
 void Client::readfromcli() {
-	sock_.async_receive(buffer(client_buffer),
+	sock_.async_receive(buffer(client_buffer, 1024),
 	               boost::bind(&Client::readcliend, 
 	               shared_from_this(), _1, _2));
 }
 
 void Client::readfromsrv() {
-	serv_sock.async_receive(buffer(server_buffer), 
+	serv_sock.async_receive(buffer(server_buffer, 1024), 
 							boost::bind(&Client::readsrvend,
 								shared_from_this(), _1, _2));
 }
@@ -83,7 +83,7 @@ void Client::start() {
 	serv_sock.async_connect(ep, boost::bind(&Client::connectend,
 											shared_from_this(), _1));
 	started = true;
-	readfromcli();
+	//readfromcli();
 	std::cout << "client started\n";
 }
 
@@ -117,6 +117,7 @@ void Client::connectend(const boost::system::error_code err) {
 		stop();
 	}
 	readfromsrv();
+	readfromcli();
 }
 
 int main(int argc, char ** argv) {
