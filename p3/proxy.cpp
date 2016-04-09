@@ -24,10 +24,6 @@ void Config::parse(){
 using namespace boost::asio;
 
 client_ptr ClientManager::new_client() {
-	/*return clients.emplace(
-			next_cookie,
-			new Client(next_cookie++)
-		).first->second; */
 	int num = distribution(generator);
 	std::cout << num << ' ' << servers[num].ipaddr << ' ' << servers[num].port << std::endl;
 	ip::address addr = ip::address::from_string(servers[num].ipaddr);
@@ -38,12 +34,9 @@ client_ptr ClientManager::new_client() {
 	return cli; 
 }
 
-//ip::tcp::endpoint ep;
-//ip::tcp::acceptor acc(service);
 std::shared_ptr<ip::tcp::acceptor> acc;
 
 ClientManager clientmanager;
-
 
 void handle_accept(client_ptr cli, const boost::system::error_code & error) {
 	cli->start();
@@ -51,37 +44,37 @@ void handle_accept(client_ptr cli, const boost::system::error_code & error) {
 	acc->async_accept(new_client->socket(), boost::bind(handle_accept, new_client, _1));
 }
  
-void Client::read() {
+void Client::readfromcli() {
 	sock_.async_receive(buffer(client_buffer),
-	               boost::bind(&Client::readend, 
+	               boost::bind(&Client::readcliend, 
 	               shared_from_this(), _1, _2));
 }
 
-void Client::readfromserver() {
+void Client::readfromsrv() {
 	serv_sock.async_receive(buffer(server_buffer), 
-							boost::bind(&Client::rdsrvend,
+							boost::bind(&Client::readsrvend,
 								shared_from_this(), _1, _2));
 }
 
-void Client::rdsrvend(const boost::system::error_code err, size_t size) {
+void Client::readsrvend(const boost::system::error_code err, size_t size) {
 	server_buffer[size] = '\0';
 	std::cout <<server_buffer;
 	if (err) { 
 		stop();
 	} else {
 		write2cli(server_buffer, size);
-		readfromserver();
+		readfromsrv();
 	}
 }
 
-void Client::readend(const boost::system::error_code err, size_t size) {
+void Client::readcliend(const boost::system::error_code err, size_t size) {
 	client_buffer[size] = '\0';
 	std::cout << client_buffer;
 	write2srv(client_buffer, size);
 	if (err) {
 		stop();
 	} else {
-		read();
+		readfromcli();
 	}
 }
 
@@ -90,13 +83,13 @@ void Client::start() {
 	serv_sock.async_connect(ep, boost::bind(&Client::connectend,
 											shared_from_this(), _1));
 	started = true;
-	read();
+	readfromcli();
 	std::cout << "client started\n";
 }
 
 void Client::write2cli(char *buf, size_t size){
 	sock_.async_send(buffer(buf, size), 
-					boost::bind(&Client::writeend,
+					boost::bind(&Client::write2cliend,
 						shared_from_this(), _1, _2));
 }
 
@@ -108,7 +101,7 @@ void Client::write2srv(char *buf, size_t size) {
 }
 
 void Client::write2srvend(const boost::system::error_code err, size_t size) {};
-void Client::writeend(const boost::system::error_code err, size_t size) {};
+void Client::write2cliend(const boost::system::error_code err, size_t size) {};
 
 void Client::stop(){
 	if (started) {
@@ -123,7 +116,7 @@ void Client::connectend(const boost::system::error_code err) {
 		std::cout << "error with connecting server";
 		stop();
 	}
-	readfromserver();
+	readfromsrv();
 }
 
 int main(int argc, char ** argv) {

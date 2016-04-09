@@ -50,13 +50,13 @@ class Client : public std::enable_shared_from_this<Client> {
 	Client (uint64_t cookie_, ip::address addr, int port) 
 	: sock_(service), cookie(cookie_)
 	, server_addr(addr), server_port(port), serv_sock(service) { }
-	void read();
-	void readfromserver();
-	void rdsrvend(const boost::system::error_code err, size_t size);
-	void readend(const boost::system::error_code err, size_t size);
+	void readfromcli();
+	void readcliend(const boost::system::error_code err, size_t size);
+	void readfromsrv();
+	void readsrvend(const boost::system::error_code err, size_t size);
 	void write2cli(char * buf, size_t size);
 	void write2srv(char *buf, size_t size);
-	void writeend(const boost::system::error_code err, size_t size);
+	void write2cliend(const boost::system::error_code err, size_t size);
 	bool started = false;
 	void connectend(const boost::system::error_code err);
 	void write2srvend(const boost::system::error_code err, size_t size);
