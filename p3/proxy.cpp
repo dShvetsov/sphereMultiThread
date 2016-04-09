@@ -1,5 +1,5 @@
 #include "proxy.h"
-#include <iostream>
+
 
 void Config::parse(){
 	fscanf(file, "%d ", &proxyport);
@@ -13,7 +13,7 @@ void Config::parse(){
 		int start = i;
 		for (; str[i] >='0' and str[i] <= '9' or str[i] == '.'; i++);
 		str[i] = '\0';
-		pushed.ipaddr = std::string(&gstr[start]);
+		pushed.ipaddr = std::string(&str[start]);
 		getdelim(&str, &n, ',', file);
 		pushed.port = atoi(str);
 		dst.push_back(pushed);
@@ -22,20 +22,41 @@ void Config::parse(){
 }
 using namespace boost::asio;
 
-//void handle_accept()
+client_ptr ClientManager::new_client() {
+	client_ptr cli(new Client());
+	clients.push_back(cli);
+	return cli;
+}
+
+//ip::tcp::endpoint ep;
+//ip::tcp::acceptor acc(service);
+std::shared_ptr<ip::tcp::acceptor> acc;
+
+ClientManager clientmanager;
+
+
+void handle_accept(client_ptr cli, const boost::system::error_code & error) {
+	cli->start();
+	client_ptr new_client = clientmanager.new_client();
+	acc->async_accept(new_client->socket(), boost::bind(handle_accept, new_client, _1));
+}
  
+
+
+
 int main(int argc, char ** argv) {
 	if (argc < 2) {std::cout << "specify config file\n"; return 0;}
 	Config cnfg(argv[1]);
-	std::cout << "port is: "<< cnfg.get_port() << std::endl;
-	auto v = cnfg.get_dst();
-	for (auto i = v.begin(); i != v.end(); i++){
-		std::cout << "dest addr:" << i->ipaddr << ": " << i->port << std::endl;
-	}
-/*	io_service service;
-	ip::tcp::endpoing ep(ip::tcp::v4(), cnfg.get_port());
-	ip::tcp::acceptor acc(service, ep);
-	ip::tcp::socket sock(service);
-	acc.async_accept(sock, boost::bind(handle_accept, sock, _1));
-	service.run(); */
+	ip::tcp::endpoint ep(ip::tcp::v4(), cnfg.get_port());
+	acc = std::shared_ptr<ip::tcp::acceptor>(new ip::tcp::acceptor(service, ep));
+	//ep.port(cnfg.get_port());
+	//ep.address(ip::address_v4::any());
+
+	//acc.bind(ep);
+	//acc.open(ep.protocol());
+//	ip::tcp::endpoint ep(ip::tcp::v4(), cnfg.get_port());
+//	ip::tcp::acceptor acc(service, ep);
+	client_ptr client = clientmanager.new_client();
+	acc->async_accept(client->socket(), boost::bind(handle_accept, client, _1));
+	service.run(); 
 }
