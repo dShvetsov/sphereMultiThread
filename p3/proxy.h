@@ -7,6 +7,8 @@
 #include <iostream>
 #include <boost/enable_shared_from_this.hpp>
 #include <boost/shared_ptr.hpp>
+#include <map>
+#include <cstdint>
 using namespace boost::asio;
 
 io_service service;
@@ -30,8 +32,8 @@ class Config {
 			file = ::fopen(name, "r");
 			parse();
 		}
-		int get_port(){return proxyport;}
-		std::vector<dst_struct> get_dst(){return dst;}
+		int get_port() const {return proxyport;}
+		std::vector<dst_struct> get_dst() const {return dst;}
 };
 
 class ClientManager;
@@ -39,27 +41,49 @@ class Client;
 typedef std::shared_ptr<Client> client_ptr;
 
 class Client : public std::enable_shared_from_this<Client> {
+	uint64_t cookie;
 	ip::tcp::socket sock_;
+	ip::tcp::socket serv_sock;
 	char client_buffer[1024];
-	Client () :sock_(service) { }
+	char server_buffer[1024];
+	ip::address server_addr;
+	int server_port;
+	Client (uint64_t cookie_, ip::address addr, int port) 
+	: sock_(service), cookie(cookie_)
+	, server_addr(addr), server_port(port), serv_sock(service) { }
 	void read();
-	void readend(boost::system::error_code err, size_t size);
-	void write(size_t size);
-	void writeend(boost::system::error_code err, size_t size);
+	void readfromserver();
+	void rdsrvend(const boost::system::error_code err, size_t size);
+	void readend(const boost::system::error_code err, size_t size);
+	void write2cli(char * buf, size_t size);
+	void writeend(const boost::system::error_code err, size_t size);
+	bool started = false;
+	void connectend(const boost::system::error_code err);
 public:
 	ip::tcp::socket &socket() { return sock_;}
 	void start ();
+	void stop ();
 	friend class ClientManager;
 };
 
 
 
 
-class ClientManager { 
-	std::vector <client_ptr> clients;
-
+class ClientManager {
+	std::vector<dst_struct> servers;
+	std::map <uint64_t, client_ptr> clients;
+	uint64_t next_cookie = 1;
+	std::default_random_engine generator;
+	std::uniform_int_distribution<int> distribution;
 public :
+	void set_servers(std::vector<dst_struct> servers_) {
+		servers = servers_;
+		std::uniform_int_distribution<int> helper(0, servers.size());
+		distribution.param(helper.param());
+	}
 	client_ptr new_client( );
-
+	void stop(uint64_t cookie){
+		clients.erase(cookie);
+	}
 
 };

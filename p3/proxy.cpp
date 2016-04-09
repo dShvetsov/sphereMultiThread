@@ -23,9 +23,16 @@ void Config::parse(){
 using namespace boost::asio;
 
 client_ptr ClientManager::new_client() {
-	client_ptr cli(new Client());
-	clients.push_back(cli);
-	return cli;
+	/*return clients.emplace(
+			next_cookie,
+			new Client(next_cookie++)
+		).first->second; */
+	int num = distribution(generator);
+	ip::address addr = ip::address::from_string(servers[num].ipaddr);
+	int port = servers[num].port;
+	client_ptr cli(new Client(next_cookie, addr, port));
+	clients[next_cookie++] = cli;
+	return cli; 
 }
 
 //ip::tcp::endpoint ep;
@@ -47,29 +54,71 @@ void Client::read() {
 	               shared_from_this(), _1, _2));
 }
 
-void Client::readend(boost::system::error_code err, size_t size) {
+void Client::readfromserver() {
+	serv_sock.async_receive(buffer(server_buffer), 
+							boost::bind(&Client::rdsrvend,
+								shared_from_this(), _1, _2));
+}
+
+void Client::rdsrvend(const boost::system::error_code err, size_t size) {
+	server_buffer[size] = '\0';
+	std::cout <<server_buffer;
+	if (err) { 
+		stop();
+	} else {
+		write2cli(server_buffer, size);
+		readfromserver();
+	}
+}
+
+void Client::readend(const boost::system::error_code err, size_t size) {
 	client_buffer[size] = '\0';
 	std::cout << client_buffer;
-	write(size);
-	read();
+	write2cli(client_buffer, size);
+	if (err) {
+		stop();
+	} else {
+		read();
+	}
 }
 
 void Client::start() {
+	ip::tcp::endpoint ep(server_addr, server_port);
+	serv_sock.async_connect(ep, boost::bind(&Client::connectend,
+											shared_from_this(), _1));
+	started = true;
 	read();
 	std::cout << "client started\n";
 }
 
-void Client::write(size_t size){
-	sock_.async_send(buffer(client_buffer, size), 
+void Client::write2cli(char *buf, size_t size){
+	sock_.async_send(buffer(buf, size), 
 					boost::bind(&Client::writeend,
 						shared_from_this(), _1, _2));
 }
 
-void Client::writeend(boost::system::error_code err, size_t size) {};
+void Client::writeend(const boost::system::error_code err, size_t size) {};
+
+void Client::stop(){
+	if (started) {
+		sock_.close();
+	}
+	clientmanager.stop(cookie);
+	std::cout << "stopped\n";
+}
+
+void Client::connectend(const boost::system::error_code err) {
+	if (err) {
+		std::cout << "error with connecting server";
+		stop();
+	}
+	readfromserver();
+}
 
 int main(int argc, char ** argv) {
 	if (argc < 2) {std::cout << "specify config file\n"; return 0;}
 	Config cnfg(argv[1]);
+	clientmanager.set_servers(cnfg.get_dst());
 	ip::tcp::endpoint ep(ip::tcp::v4(), cnfg.get_port());
 	acc = std::shared_ptr<ip::tcp::acceptor>(new ip::tcp::acceptor(service, ep));
 	//ep.port(cnfg.get_port());
